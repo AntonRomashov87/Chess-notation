@@ -140,8 +140,9 @@ tr:hover td{background:rgba(74,144,217,.07)}
     <button class="btn active" id="btn-white" onclick="setColor('white')">♙ Білими</button>
     <button class="btn" id="btn-black" onclick="setColor('black')">♟ Чорними</button>
     <span style="width:1px;background:#333"></span>
-    <button class="btn active" id="btn-coord-on" onclick="setCoords(true)">Нотація ✓</button>
+    <button class="btn" id="btn-coord-on" onclick="setCoords(true)">Нотація ✓</button>
     <button class="btn" id="btn-coord-off" onclick="setCoords(false)">Без нотації</button>
+    <button class="btn" id="btn-coord-all" onclick="setCoords('all')">Всі клітинки</button>
     <span style="width:1px;background:#333"></span>
     <button class="btn" id="btn-timer-off" onclick="setTimerMode(0)">∞ Без</button>
     <button class="btn active" id="btn-timer-on" onclick="setTimerMode(1)">⏱ Таймер</button>
@@ -168,6 +169,9 @@ tr:hover td{background:rgba(74,144,217,.07)}
       <button class="btn" onclick="loadStats()">🔄 Оновити</button>
       <button class="btn" onclick="exportExcel()">📊 Excel</button>
       <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn" id="btn-delete-mode" onclick="toggleDeleteMode()">🗑 Видалити</button>
+      <button class="btn" onclick="deleteSelected()" id="btn-delete-confirm" style="display:none;border-color:#e53935;color:#e53935">✕ Видалити вибрані</button>
+      <button class="btn" onclick="cancelDeleteMode()" id="btn-delete-cancel" style="display:none">Скасувати</button>
       <button class="btn" onclick="goLogin()">← Вийти</button>
     </div>
   </div>
@@ -194,7 +198,8 @@ tr:hover td{background:rgba(74,144,217,.07)}
   <div id="stats-table-wrap">
     <table>
       <thead><tr>
-        <th>#</th>
+        <th id="th-check" style="display:none"><input type="checkbox" id="check-all" onclick="toggleSelectAll(this)" style="accent-color:var(--error)"></th>
+      <th>#</th>
         <th onclick="sortBy('name')">Учень</th>
         <th onclick="sortBy('date')">Дата</th>
         <th onclick="sortBy('score')">⭐ Рахунок</th>
@@ -226,6 +231,12 @@ tr:hover td{background:rgba(74,144,217,.07)}
 
 <div id="footer">♟ Знавець шахової нотації &nbsp;·&nbsp; Автор: тренер Ромашов Антон &nbsp;·&nbsp; ДЮСШ «Дебют», Львів</div>
 
+<style>
+.row-select{display:none;cursor:pointer;accent-color:var(--error)}
+.delete-mode .row-select{display:inline-block}
+.delete-mode tr.selected td{background:rgba(229,57,53,.12)!important}
+tr.selected .row-select{accent-color:var(--error)}
+</style>
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -277,8 +288,7 @@ const FILES='abcdefgh';
 const MEDALS=['🥇','🥈','🥉'];
 
 let playerName='';
-let color='white',showCoords=true,timerMode=1,boardTheme=1;
-let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
+let color='white',showCoords=true,timerMode=1,boardTheme=1;let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
 let target=null,running=false,timerSecs=0,timerInterval=null,startTime=null;
 let allStats=[],sortCol='date',sortDir=-1;
 
@@ -335,12 +345,21 @@ function buildBoard(){
       sq.dataset.sq=name;
       sq.style.background=isLight?t.light:t.dark;
       sq.style.color=isLight?t.dark:t.light;
-      if(showCoords){
+
+      if(showCoords===true){
+        // класичний режим: літера внизу крайнього стовпця, цифра зліва крайнього рядка
         const df=color==='white'?f:7-f;
         const dr=color==='white'?r:7-r;
         if(df===0){const rl=document.createElement('span');rl.className='coord-label coord-rank';rl.textContent=ar+1;sq.appendChild(rl);}
         if(dr===0){const fl=document.createElement('span');fl.className='coord-label coord-file';fl.textContent=FILES[af];sq.appendChild(fl);}
+      } else if(showCoords==='all'){
+        // режим початківця: координата по центру кожної клітинки
+        const lbl=document.createElement('span');
+        lbl.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,1.8vw,13px);font-weight:800;opacity:0.55;pointer-events:none;letter-spacing:0';
+        lbl.textContent=name;
+        sq.appendChild(lbl);
       }
+
       sq.addEventListener('click',()=>handleClick(name,sq));
       board.appendChild(sq);
     }
@@ -520,7 +539,8 @@ function renderTable(){
   tbody.innerHTML=data.map((r,i)=>{
     const acc=r.accuracy??0;
     const medal=i<3?`<span class="badge ${i===0?'badge-gold':i===1?'badge-silver':'badge-bronze'}">${MEDALS[i]}</span>`:'';
-    return `<tr>
+    return     `<tr class="${deleteMode?'':''}">
+      <td style="display:${deleteMode?'':'none'}"><input type="checkbox" class="row-select" data-id="${r.id||''}" onclick="toggleRow(this,this.closest('tr'))"></td>
       <td style="color:var(--sub)">${i+1}</td>
       <td><b>${r.name||'—'}</b> ${medal}</td>
       <td style="color:var(--sub)">${r.dateStr||'—'}</td>
@@ -542,6 +562,56 @@ function sortBy(col){
 }
 window.sortBy=sortBy;
 window.renderTable=renderTable;
+
+// ── delete mode ──
+let deleteMode=false;
+
+function toggleDeleteMode(){
+  deleteMode=true;
+  document.getElementById('btn-delete-mode').style.display='none';
+  document.getElementById('btn-delete-confirm').style.display='';
+  document.getElementById('btn-delete-cancel').style.display='';
+  document.getElementById('th-check').style.display='';
+  document.getElementById('stats-table-wrap').classList.add('delete-mode');
+  renderTable();
+}
+function cancelDeleteMode(){
+  deleteMode=false;
+  document.getElementById('btn-delete-mode').style.display='';
+  document.getElementById('btn-delete-confirm').style.display='none';
+  document.getElementById('btn-delete-cancel').style.display='none';
+  document.getElementById('th-check').style.display='none';
+  document.getElementById('check-all').checked=false;
+  document.getElementById('stats-table-wrap').classList.remove('delete-mode');
+  renderTable();
+}
+function toggleSelectAll(cb){
+  document.querySelectorAll('.row-select').forEach(c=>c.checked=cb.checked);
+  document.querySelectorAll('#stats-tbody tr').forEach(tr=>tr.classList.toggle('selected',cb.checked));
+}
+function toggleRow(cb,tr){tr.classList.toggle('selected',cb.checked);}
+
+async function deleteSelected(){
+  const selected=[...document.querySelectorAll('.row-select:checked')].map(c=>c.dataset.id);
+  if(!selected.length){alert('Не вибрано жодного запису!');return;}
+  if(!confirm(`Видалити ${selected.length} запис(ів)? Це незворотно!`))return;
+  if(!window._firebaseReady){alert('Firebase не підключено');return;}
+
+  const{deleteDoc,doc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  let done=0;
+  for(const id of selected){
+    try{await deleteDoc(doc(window._db,window._col,id));done++;}catch(e){console.error(e);}
+  }
+  alert(`✓ Видалено ${done} з ${selected.length} записів`);
+  allStats=allStats.filter(r=>!selected.includes(r.id));
+  cancelDeleteMode();
+  renderTable();renderCharts();
+}
+window.toggleDeleteMode=toggleDeleteMode;
+window.cancelDeleteMode=cancelDeleteMode;
+window.toggleSelectAll=toggleSelectAll;
+window.toggleRow=toggleRow;
+window.deleteSelected=deleteSelected;
 
 function renderCharts(){
   const byName={};
@@ -598,7 +668,13 @@ window.exportCSV=exportCSV;
 
 // ── settings ──
 function setColor(c){color=c;document.getElementById('btn-white').classList.toggle('active',c==='white');document.getElementById('btn-black').classList.toggle('active',c==='black');buildBoard();}
-function setCoords(v){showCoords=v;document.getElementById('btn-coord-on').classList.toggle('active',v);document.getElementById('btn-coord-off').classList.toggle('active',!v);buildBoard();}
+function setCoords(v){
+  showCoords=v;
+  document.getElementById('btn-coord-on').classList.toggle('active',v===true);
+  document.getElementById('btn-coord-off').classList.toggle('active',v===false);
+  document.getElementById('btn-coord-all').classList.toggle('active',v==='all');
+  buildBoard();
+}
 function setTimerMode(v){timerMode=v;document.getElementById('btn-timer-off').classList.toggle('active',v===0);document.getElementById('btn-timer-on').classList.toggle('active',v===1);const s=parseInt(document.getElementById('timer-input').value)||60;document.getElementById('timer-val').textContent=v?fmtTime(s):'∞';}
 function onTimerInput(){setTimerMode(1);}
 function setBoard(i){boardTheme=i;[0,1,2,3].forEach(n=>document.getElementById(`btn-board-${n}`).classList.toggle('active',n===i));buildBoard();}
