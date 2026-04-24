@@ -183,8 +183,8 @@ tr:hover td{background:rgba(74,144,217,.07)}
       <option value="⏱">⏱ З таймером</option>
     </select>
     <select class="inp" id="sort-col" onchange="renderTable()" style="width:140px;flex:none">
+      <option value="score" selected>Рахунок</option>
       <option value="date">Дата</option>
-      <option value="score">Рахунок</option>
       <option value="correct">Правильно</option>
       <option value="accuracy">Точність</option>
       <option value="bestStreak">Серія</option>
@@ -192,8 +192,8 @@ tr:hover td{background:rgba(74,144,217,.07)}
     </select>
   </div>
   <div id="charts-wrap">
-    <div class="chart-card"><h3>Топ учнів (рахунок)</h3><div id="chart-top"></div></div>
-    <div class="chart-card"><h3>Топ точності (%)</h3><div id="chart-acc"></div></div>
+    <div class="chart-card"><h3>🏆 Топ рахунок (найкращий)</h3><div id="chart-top"></div></div>
+    <div class="chart-card"><h3>🎯 Топ точності (найкраща спроба)</h3><div id="chart-acc"></div></div>
   </div>
   <div id="stats-table-wrap">
     <table>
@@ -290,7 +290,7 @@ const MEDALS=['🥇','🥈','🥉'];
 let playerName='';
 let color='white',showCoords=true,timerMode=1,boardTheme=1;let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
 let target=null,running=false,timerSecs=0,timerInterval=null,startTime=null;
-let allStats=[],sortCol='date',sortDir=-1;
+let allStats=[],sortCol='score',sortDir=-1;
 
 // ── screens ──
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
@@ -532,7 +532,9 @@ function renderTable(){
   data.sort((a,b)=>{
     let av=a[sc]??0,bv=b[sc]??0;
     if(sc==='name'||sc==='date'){av=String(av);bv=String(bv);}
-    return av<bv?sortDir:av>bv?-sortDir:0;
+    if(av>bv)return sortDir===-1?-1:1;
+    if(av<bv)return sortDir===-1?1:-1;
+    return 0;
   });
   const tbody=document.getElementById('stats-tbody');
   if(!data.length){tbody.innerHTML=`<tr><td colspan="10" class="no-data">Немає результатів</td></tr>`;return;}
@@ -614,20 +616,29 @@ window.toggleRow=toggleRow;
 window.deleteSelected=deleteSelected;
 
 function renderCharts(){
-  const byName={};
-  allStats.forEach(r=>{if(!r.name)return;if(!byName[r.name]||r.score>byName[r.name].score)byName[r.name]=r;});
-  const top=Object.values(byName).sort((a,b)=>b.score-a.score).slice(0,6);
-  const maxS=Math.max(...top.map(r=>r.score),1);
-  document.getElementById('chart-top').innerHTML=top.map(r=>`
+  // Найкращий результат кожного учня
+  const bestByName={};
+  allStats.forEach(r=>{
+    if(!r.name)return;
+    if(!bestByName[r.name]||r.score>(bestByName[r.name].score||0))bestByName[r.name]=r;
+  });
+
+  // Топ рахунок — сортуємо від більшого до меншого, топ-6
+  const top=Object.values(bestByName).sort((a,b)=>b.score-a.score).slice(0,6);
+  const maxS=Math.max(...top.map(r=>r.score||0),1);
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('chart-top').innerHTML=top.map((r,i)=>`
     <div class="bar-row">
-      <div class="bar-name">${r.name}</div>
-      <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(r.score/maxS*100)}%"></div></div>
-      <div class="bar-val">${r.score}</div>
+      <div class="bar-name">${medals[i]||'  '} ${r.name}</div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.round((r.score||0)/maxS*100)}%"></div></div>
+      <div class="bar-val">${r.score||0}</div>
     </div>`).join('')||'<div class="no-data">Немає даних</div>';
-  const topAcc=Object.values(byName).filter(r=>(r.correct||0)>=5).sort((a,b)=>b.accuracy-a.accuracy).slice(0,6);
-  document.getElementById('chart-acc').innerHTML=topAcc.map(r=>`
+
+  // Топ точності — точність найкращої спроби, сортуємо від більшої до меншої
+  const topAcc=Object.values(bestByName).sort((a,b)=>b.accuracy-a.accuracy).slice(0,6);
+  document.getElementById('chart-acc').innerHTML=topAcc.map((r,i)=>`
     <div class="bar-row">
-      <div class="bar-name">${r.name}</div>
+      <div class="bar-name">${medals[i]||'  '} ${r.name}</div>
       <div class="bar-bg"><div class="bar-fill" style="width:${r.accuracy||0}%;background:var(--success)"></div></div>
       <div class="bar-val">${r.accuracy||0}%</div>
     </div>`).join('')||'<div class="no-data">Немає даних</div>';
