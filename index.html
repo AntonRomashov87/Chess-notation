@@ -494,7 +494,7 @@ async function saveResult(elapsed){
       name:playerName,score,correct:totalAnswered,errors,accuracy:acc,
       bestStreak,elapsed,
       mode:timerMode?`⏱${fmtTime(secs)}`:'∞',
-      coords:showCoords,color,
+      coords:showCoords===true?'⊡ краї':showCoords==='all'?'⊞ всі':'⊘ без',color,
       timestamp:window._serverTimestamp(),
       dateStr:new Date().toLocaleDateString('uk-UA'),
     });
@@ -550,7 +550,7 @@ function renderTable(){
       <td><span class="acc-bar" style="width:${Math.min(acc,100)}px;max-width:60px"></span>${acc}%</td>
       <td>🔥 ${r.bestStreak||0}</td>
       <td>${fmtTime(r.elapsed||0)}</td>
-      <td style="color:var(--sub);font-size:11px">${r.mode||'—'}</td>
+      <td style="color:var(--sub);font-size:11px">${r.mode||'—'} &nbsp; ${r.coords||'—'}</td>
     </tr>`;
   }).join('');
   document.getElementById('trainer-summary').textContent=`Показано ${data.length} з ${allStats.length} результатів`;
@@ -640,7 +640,7 @@ function exportExcel(){
   allStats.forEach(r=>rows.push([
     r.name||'',r.dateStr||'',r.score||0,r.correct||0,r.errors||0,
     r.accuracy||0,r.bestStreak||0,r.elapsed||0,fmtTime(r.elapsed||0),
-    r.mode||'',r.coords?'так':'ні',r.color||''
+    r.mode||'',r.coords||'',r.color||''
   ]));
   const ws=XLSX.utils.aoa_to_sheet(rows);
   // ширина колонок
