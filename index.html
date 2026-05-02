@@ -4,10 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Знавець шахової нотації</title>
+
+<!-- Telegram Mini App SDK — обов'язково першим -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--board-light:#f0d9b5;--board-dark:#b58863;--accent:#4a90d9;--bg:#1a1a2e;--panel:#16213e;--text:#eee;--sub:#aaa;--success:#4caf50;--error:#e53935}
-body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:10px 6px 24px;user-select:none}
+:root{
+  --board-light:#f0d9b5;--board-dark:#b58863;
+  --accent:#4a90d9;--bg:#1a1a2e;--panel:#16213e;
+  --text:#eee;--sub:#aaa;--success:#4caf50;--error:#e53935;
+  /* Telegram підставляє свої кольори якщо є */
+  --tg-bg: var(--tg-theme-bg-color, #1a1a2e);
+  --tg-text: var(--tg-theme-text-color, #eee);
+  --tg-hint: var(--tg-theme-hint-color, #aaa);
+  --tg-btn: var(--tg-theme-button-color, #4a90d9);
+}
+body{
+  font-family:'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:10px 6px 24px;user-select:none;
+  /* відступ для Telegram safe area */
+  padding-top:env(safe-area-inset-top, 10px);
+  padding-bottom:env(safe-area-inset-bottom, 24px);
+}
 .screen{display:none;width:100%;max-width:520px;flex-direction:column;align-items:center}
 .screen.active{display:flex}
 #trainer-screen{max-width:940px}
@@ -16,6 +37,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 /* login */
 #login-box{background:var(--panel);border-radius:16px;padding:28px 28px 24px;width:100%;max-width:360px;text-align:center;border:1.5px solid #2a3a5a}
 #login-box h2{font-size:20px;color:var(--accent);margin-bottom:4px}
+#tg-avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;border:3px solid rgba(74,144,217,.4)}
+#tg-welcome{font-size:14px;color:var(--sub);margin-bottom:12px;min-height:18px}
 .inp{width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #2a3a5a;background:#0d1b2a;color:var(--text);font-size:14px;margin-bottom:10px;outline:none}
 .inp:focus{border-color:var(--accent)}
 .btn-big{width:100%;padding:10px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:filter .2s}
@@ -24,11 +47,11 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .btn-big.secondary:hover{border-color:var(--accent);color:var(--accent)}
 #login-error{color:var(--error);font-size:12px;min-height:18px;margin-top:4px}
 
-/* game layout — board + leaderboard side by side on wide screens */
+/* game layout */
 #game-inner{display:flex;gap:16px;width:100%;align-items:flex-start;justify-content:center;flex-wrap:wrap}
 #game-left{display:flex;flex-direction:column;align-items:center;flex:1 1 300px;min-width:0}
 
-/* leaderboard panel */
+/* leaderboard */
 #leaderboard-panel{background:var(--panel);border-radius:14px;border:1.5px solid #2a3a5a;padding:14px 16px;min-width:200px;max-width:260px;flex:0 0 220px}
 #leaderboard-panel h3{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
 .lb-row{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;margin-bottom:4px;transition:background .2s}
@@ -44,7 +67,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 #lb-refresh:hover{color:var(--accent)}
 .lb-spin{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 
-/* board size slider */
+/* board size */
 .size-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin-bottom:4px}
 #board-size-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#2a3a5a;outline:none;cursor:pointer}
 #board-size-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;transition:transform .15s}
@@ -53,15 +76,16 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 #board-size-val{min-width:32px;text-align:right;font-weight:700;color:var(--accent)}
 
 /* game */
-#player-badge{background:var(--panel);border-radius:8px;padding:4px 14px;font-size:13px;margin-bottom:8px;color:var(--sub)}
+#player-badge{background:var(--panel);border-radius:8px;padding:4px 14px;font-size:13px;margin-bottom:8px;color:var(--sub);display:flex;align-items:center;gap:6px}
 #player-badge b{color:var(--accent)}
+#player-tg-icon{font-size:16px}
 h1{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:8px;letter-spacing:1px}
 #topbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;width:100%}
 .tb-card{background:var(--panel);border-radius:10px;padding:6px 14px;text-align:center;min-width:80px}
 .tb-label{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:1px}
 .tb-val{font-size:20px;font-weight:700;color:var(--accent)}
 #streak-val{color:#f0c040}
-#target-box{background:var(--panel);border-radius:14px;padding:10px 28px;margin-bottom:10px;text-align:center}
+#target-box{background:var(--panel);border-radius:14px;padding:10px 28px;margin-bottom:10px;text-align:center;width:100%}
 #target-label{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 #target{font-size:38px;font-weight:900;color:#fff;letter-spacing:2px;min-height:48px;transition:color .2s}
 #target.correct{color:var(--success)}
@@ -127,8 +151,6 @@ tr:hover td{background:rgba(74,144,217,.07)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid #444;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
 #footer{margin-top:16px;font-size:11px;color:#444;text-align:center}
-
-/* delete mode */
 .row-select{display:none;cursor:pointer;accent-color:var(--error)}
 .delete-mode .row-select{display:inline-block}
 .delete-mode tr.selected td{background:rgba(229,57,53,.12)!important}
@@ -140,9 +162,10 @@ tr.selected .row-select{accent-color:var(--error)}
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
   <div id="login-box">
-    <div style="font-size:36px;margin-bottom:8px">♟</div>
+    <!-- Telegram аватар / іконка -->
+    <div id="tg-avatar">♟</div>
     <h2>Знавець нотації</h2>
-    <p style="font-size:12px;color:var(--sub);margin-bottom:4px">Введи своє ім'я або увійди як тренер</p>
+    <div id="tg-welcome">Введи своє ім'я для старту</div>
     <p style="font-size:11px;color:#555;margin-bottom:16px">Автор: тренер Ромашов Антон</p>
     <input class="inp" id="login-name" placeholder="Ім'я учня (напр. Іван)" maxlength="32">
     <button class="btn-big" onclick="loginStudent()">Грати ▶</button>
@@ -158,7 +181,10 @@ tr.selected .row-select{accent-color:var(--error)}
 <!-- GAME -->
 <div id="game-screen" class="screen">
   <h1>♟ Знавець шахової нотації</h1>
-  <div id="player-badge">Грає: <b id="player-name-display"></b></div>
+  <div id="player-badge">
+    <span id="player-tg-icon">👤</span>
+    Грає: <b id="player-name-display"></b>
+  </div>
   <div id="topbar">
     <div class="tb-card"><div class="tb-label">Рахунок</div><div class="tb-val" id="score-val">0</div></div>
     <div class="tb-card"><div class="tb-label">Серія ✓</div><div class="tb-val" id="streak-val">0</div></div>
@@ -166,7 +192,6 @@ tr.selected .row-select{accent-color:var(--error)}
     <div class="tb-card"><div class="tb-label">Помилки</div><div class="tb-val" id="errors-val" style="color:var(--error)">0</div></div>
   </div>
 
-  <!-- board + leaderboard side by side -->
   <div id="game-inner">
     <div id="game-left">
       <div id="target-box">
@@ -175,7 +200,7 @@ tr.selected .row-select{accent-color:var(--error)}
       </div>
       <div id="motivation" class="hidden"></div>
 
-      <!-- Board size slider -->
+      <!-- Слайдер розміру дошки -->
       <div class="size-row" style="width:min(440px,94vw);margin-bottom:6px">
         <span>🔲</span>
         <input type="range" id="board-size-slider" min="240" max="640" value="440" oninput="onBoardSize(this.value)">
@@ -209,7 +234,7 @@ tr.selected .row-select{accent-color:var(--error)}
       </div>
     </div>
 
-    <!-- ── TOP-5 LEADERBOARD ── -->
+    <!-- TOP-5 -->
     <div id="leaderboard-panel">
       <h3>
         🏆 Топ-5 гравців
@@ -290,7 +315,6 @@ tr.selected .row-select{accent-color:var(--error)}
 
 <div id="footer">♟ Знавець шахової нотації &nbsp;·&nbsp; Автор: тренер Ромашов Антон &nbsp;·&nbsp; ДЮСШ «Дебют», Львів</div>
 
-<!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Firebase -->
@@ -299,13 +323,13 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,addDoc,getDocs,query,orderBy,serverTimestamp}
   from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey:            "AIzaSyAhWcR6Pi5K1DWhjoS-vSLwhop5Go2vKrY",
-  authDomain:        "chess-notation-team.firebaseapp.com",
-  projectId:         "chess-notation-team",
-  storageBucket:     "chess-notation-team.firebasestorage.app",
-  messagingSenderId: "266723095822",
-  appId:             "1:266723095822:web:55f7e303dfb62bb9c8d35f"
+const firebaseConfig={
+  apiKey:"AIzaSyAhWcR6Pi5K1DWhjoS-vSLwhop5Go2vKrY",
+  authDomain:"chess-notation-team.firebaseapp.com",
+  projectId:"chess-notation-team",
+  storageBucket:"chess-notation-team.firebasestorage.app",
+  messagingSenderId:"266723095822",
+  appId:"1:266723095822:web:55f7e303dfb62bb9c8d35f"
 };
 
 const TRAINER_PASSWORD="debut2025";
@@ -322,6 +346,50 @@ window._firebaseReady=true;
 </script>
 
 <script>
+// ══════════════════════════════════════════════
+//  TELEGRAM MINI APP — ініціалізація
+// ══════════════════════════════════════════════
+const tg = window.Telegram?.WebApp;
+
+if (tg) {
+  tg.ready();           // повідомляємо Telegram що додаток готовий
+  tg.expand();          // розгортаємо на весь екран
+
+  // Підхоплюємо ім'я та дані користувача з Telegram
+  const tgUser = tg.initDataUnsafe?.user;
+  if (tgUser) {
+    // Формуємо ім'я: ім'я + прізвище або username
+    const tgName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ')
+                   || tgUser.username
+                   || '';
+
+    if (tgName) {
+      // Підставляємо ім'я у поле входу
+      document.getElementById('login-name').value = tgName;
+
+      // Вітальне повідомлення
+      document.getElementById('tg-welcome').textContent =
+        `Привіт, ${tgUser.first_name || tgName}! 👋`;
+
+      // Аватар — перша літера імені
+      const av = document.getElementById('tg-avatar');
+      av.textContent = (tgUser.first_name || tgName)[0].toUpperCase();
+
+      // Значок у бейджі
+      document.getElementById('player-tg-icon').textContent = '✈️';
+    }
+  }
+
+  // Адаптуємо кольори під тему Telegram якщо вона є
+  if (tg.colorScheme === 'dark' || !tg.colorScheme) {
+    // вже темна тема — нічого не змінюємо
+  }
+} else {
+  // Запущено в браузері (не Telegram) — все працює як є
+  document.getElementById('tg-welcome').textContent = "Введи своє ім'я для старту";
+}
+
+// ══════════════════════════════════════════════
 const BOARD_THEMES=[
   {light:'#d4b483',dark:'#8b5a2b'},
   {light:'#f0d9b5',dark:'#b58863'},
@@ -346,20 +414,19 @@ let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
 let target=null,running=false,timerSecs=0,timerInterval=null,startTime=null;
 let allStats=[],sortCol='score',sortDir=-1;
 
-// ── screens ──
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
 function goLogin(){
-  running=false;
-  clearInterval(timerInterval);
-  hideOverlay();
-  show('login-screen');
+  running=false;clearInterval(timerInterval);hideOverlay();show('login-screen');
 }
 window.goLogin=goLogin;
 
 // ── login ──
 function loginStudent(){
   const n=document.getElementById('login-name').value.trim();
-  if(!n){setLoginErr('Введіть ім\'я!');return;}
+  if(!n){setLoginErr("Введіть ім'я!");return;}
   playerName=n;
   document.getElementById('player-name-display').textContent=n;
   setLoginErr('');
@@ -372,9 +439,7 @@ function loginStudent(){
 function loginTrainer(){
   const p=document.getElementById('trainer-pass').value;
   if(!window.TRAINER_PASSWORD||p!==window.TRAINER_PASSWORD){setLoginErr('Невірний пароль!');return;}
-  setLoginErr('');
-  show('trainer-screen');
-  loadStats();
+  setLoginErr('');show('trainer-screen');loadStats();
 }
 function setLoginErr(t){document.getElementById('login-error').textContent=t;}
 document.getElementById('login-name').addEventListener('keydown',e=>{if(e.key==='Enter')loginStudent();});
@@ -382,7 +447,7 @@ document.getElementById('trainer-pass').addEventListener('keydown',e=>{if(e.key=
 window.loginStudent=loginStudent;
 window.loginTrainer=loginTrainer;
 
-// ── board size slider ──
+// ── board size ──
 function onBoardSize(val){
   val=parseInt(val);
   const vw=Math.floor(window.innerWidth*0.94);
@@ -401,8 +466,7 @@ function buildBoard(){
   document.documentElement.style.setProperty('--board-dark',t.dark);
   for(let r=7;r>=0;r--){
     for(let f=0;f<8;f++){
-      const sq=document.createElement('div');
-      sq.className='sq';
+      const sq=document.createElement('div');sq.className='sq';
       const isLight=(r+f)%2===1;
       const ar=color==='white'?r:7-r;
       const af=color==='white'?f:7-f;
@@ -410,7 +474,6 @@ function buildBoard(){
       sq.dataset.sq=name;
       sq.style.background=isLight?t.light:t.dark;
       sq.style.color=isLight?t.dark:t.light;
-
       if(showCoords===true){
         const df=color==='white'?f:7-f;
         const dr=color==='white'?r:7-r;
@@ -418,11 +481,9 @@ function buildBoard(){
         if(dr===0){const fl=document.createElement('span');fl.className='coord-label coord-file';fl.textContent=FILES[af];sq.appendChild(fl);}
       } else if(showCoords==='all'){
         const lbl=document.createElement('span');
-        lbl.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,1.8vw,13px);font-weight:800;opacity:0.55;pointer-events:none;letter-spacing:0';
-        lbl.textContent=name;
-        sq.appendChild(lbl);
+        lbl.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,1.8vw,13px);font-weight:800;opacity:0.55;pointer-events:none';
+        lbl.textContent=name;sq.appendChild(lbl);
       }
-
       sq.addEventListener('click',()=>handleClick(name,sq));
       board.appendChild(sq);
     }
@@ -439,6 +500,8 @@ function handleClick(name,sq){
     document.getElementById('streak-val').textContent=streak;
     sq.classList.add('flash-ok');setTimeout(()=>sq.classList.remove('flash-ok'),400);
     flashTarget(true);checkMotivation();
+    // Telegram haptic feedback
+    tg?.HapticFeedback?.impactOccurred('light');
     setTimeout(nextTarget,300);
   } else {
     errors++;streak=0;
@@ -446,6 +509,8 @@ function handleClick(name,sq){
     document.getElementById('streak-val').textContent=0;
     sq.classList.add('flash-err');setTimeout(()=>sq.classList.remove('flash-err'),400);
     flashTarget(false);
+    // Telegram haptic feedback для помилки
+    tg?.HapticFeedback?.notificationOccurred('error');
     const ok=document.querySelector(`[data-sq="${target}"]`);
     if(ok){ok.classList.add('flash-ok');setTimeout(()=>ok.classList.remove('flash-ok'),600);}
   }
@@ -457,7 +522,12 @@ function flashTarget(ok){
 }
 function checkMotivation(){
   const f=MOTIVATIONS.find(m=>m[0]===streak);
-  if(f){const el=document.getElementById('motivation');el.textContent=f[1];el.classList.remove('hidden');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('hidden'),3000);}
+  if(f){
+    const el=document.getElementById('motivation');
+    el.textContent=f[1];el.classList.remove('hidden');
+    clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('hidden'),3000);
+    tg?.HapticFeedback?.notificationOccurred('success');
+  }
 }
 function nextTarget(){
   const all=[];
@@ -495,27 +565,20 @@ function startGame(){
   if(timerMode)startTimer();
   nextTarget();
 }
-
-function stopGame(){
-  if(!running)return;
-  finishGame();
-}
-
+function stopGame(){if(!running)return;finishGame();}
 function finishGame(){
   if(!running)return;
-  running=false;
-  clearInterval(timerInterval);
+  running=false;clearInterval(timerInterval);
   const elapsed=Math.round((Date.now()-startTime)/1000);
   target=null;
   document.getElementById('target').textContent='—';
   document.getElementById('target').classList.remove('correct','wrong');
   showOverlay(elapsed);
   saveResult(elapsed);
+  // Telegram вібрація при завершенні
+  tg?.HapticFeedback?.notificationOccurred('success');
 }
-
-window.startGame=startGame;
-window.stopGame=stopGame;
-window.endGame=stopGame;
+window.startGame=startGame;window.stopGame=stopGame;
 
 // ── overlay ──
 function showOverlay(elapsed){
@@ -530,7 +593,6 @@ function showOverlay(elapsed){
   document.getElementById('overlay').classList.add('show');
 }
 function hideOverlay(){document.getElementById('overlay').classList.remove('show');}
-
 document.getElementById('overlay-again').onclick=()=>startGame();
 document.getElementById('overlay-logout').onclick=()=>{hideOverlay();goLogin();};
 
@@ -541,6 +603,12 @@ async function saveResult(elapsed){
   sv.innerHTML='<span class="spinner"></span>Збереження…';
   const secs=parseInt(document.getElementById('timer-input').value)||60;
   const acc=totalAnswered+errors>0?Math.round(totalAnswered/(totalAnswered+errors)*100):0;
+
+  // Додаємо Telegram ID якщо є (для унікальності гравця)
+  const tgUser=tg?.initDataUnsafe?.user;
+  const tgId=tgUser?.id||null;
+  const tgUsername=tgUser?.username||null;
+
   try{
     await window._addDoc(window._collection(window._db,window._col),{
       name:playerName,score,correct:totalAnswered,errors,accuracy:acc,
@@ -549,27 +617,24 @@ async function saveResult(elapsed){
       coords:showCoords===true?'⊡ краї':showCoords==='all'?'⊞ всі':'⊘ без',color,
       timestamp:window._serverTimestamp(),
       dateStr:new Date().toLocaleDateString('uk-UA'),
+      tgId,tgUsername,   // зберігаємо Telegram дані
+      source: tg ? 'telegram' : 'web',
     });
     sv.textContent='✓ Збережено!';
-    // Оновити лідерборд після збереження
-    setTimeout(loadLeaderboard, 800);
+    setTimeout(loadLeaderboard,800);
   }catch(e){sv.innerHTML=`⚠ Помилка: ${e.message}`;}
 }
 
-// ── LEADERBOARD (top-5 on game screen) ──
+// ── leaderboard ──
 async function loadLeaderboard(){
   const list=document.getElementById('lb-list');
   list.innerHTML='<div class="lb-empty"><span class="lb-spin"></span></div>';
-  if(!window._firebaseReady){
-    list.innerHTML='<div class="lb-empty">⚠ Немає з\'єднання</div>';
-    return;
-  }
+  if(!window._firebaseReady){list.innerHTML='<div class="lb-empty">⚠ Немає з\'єднання</div>';return;}
   try{
     const snap=await window._getDocs(
       window._query(window._collection(window._db,window._col),window._orderBy('score','desc'))
     );
     const docs=snap.docs.map(d=>d.data());
-    // знаходимо найкращий результат кожного учня
     const best={};
     docs.forEach(r=>{
       if(!r.name)return;
@@ -579,26 +644,24 @@ async function loadLeaderboard(){
     if(!top.length){list.innerHTML='<div class="lb-empty">Ще немає результатів</div>';return;}
     list.innerHTML=top.map((r,i)=>{
       const isMe=r.name===playerName;
+      const tgMark=r.source==='telegram'?' ✈️':'';
       return `<div class="lb-row${isMe?' me':''}">
         <div class="lb-rank">${MEDALS[i]||i+1}</div>
         <div class="lb-info">
-          <div class="lb-name">${r.name}</div>
+          <div class="lb-name">${r.name}${tgMark}</div>
           <div class="lb-score">⭐ ${r.score} балів</div>
           <div class="lb-meta">✓${r.correct||0} &nbsp;✗${r.errors||0} &nbsp;${r.accuracy||0}%</div>
         </div>
       </div>`;
     }).join('');
-  }catch(e){
-    list.innerHTML=`<div class="lb-empty">⚠ ${e.message}</div>`;
-  }
+  }catch(e){list.innerHTML=`<div class="lb-empty">⚠ ${e.message}</div>`;}
 }
 window.loadLeaderboard=loadLeaderboard;
 
 // ── trainer ──
 async function loadStats(){
   if(!window._firebaseReady){
-    document.getElementById('stats-tbody').innerHTML=`<tr><td colspan="10" class="no-data">⚠ Firebase не підключено</td></tr>`;
-    return;
+    document.getElementById('stats-tbody').innerHTML=`<tr><td colspan="10" class="no-data">⚠ Firebase не підключено</td></tr>`;return;
   }
   document.getElementById('stats-tbody').innerHTML=`<tr><td colspan="10" class="no-data"><span class="spinner"></span> Завантаження…</td></tr>`;
   try{
@@ -630,13 +693,15 @@ function renderTable(){
   });
   const tbody=document.getElementById('stats-tbody');
   if(!data.length){tbody.innerHTML=`<tr><td colspan="10" class="no-data">Немає результатів</td></tr>`;return;}
+  const medals=['🥇','🥈','🥉'];
   tbody.innerHTML=data.map((r,i)=>{
     const acc=r.accuracy??0;
-    const medal=i<3?`<span class="badge ${i===0?'badge-gold':i===1?'badge-silver':'badge-bronze'}">${MEDALS[i]}</span>`:'';
+    const medal=i<3?`<span class="badge ${i===0?'badge-gold':i===1?'badge-silver':'badge-bronze'}">${medals[i]}</span>`:'';
+    const tgMark=r.source==='telegram'?' ✈️':'';
     return `<tr>
       <td style="display:${deleteMode?'':'none'}"><input type="checkbox" class="row-select" data-id="${r.id||''}" onclick="toggleRow(this,this.closest('tr'))"></td>
       <td style="color:var(--sub)">${i+1}</td>
-      <td><b>${r.name||'—'}</b> ${medal}</td>
+      <td><b>${r.name||'—'}</b>${tgMark} ${medal}</td>
       <td style="color:var(--sub)">${r.dateStr||'—'}</td>
       <td><b style="color:#f0c040">${r.score||0}</b></td>
       <td style="color:var(--success)">${r.correct||0}</td>
@@ -651,13 +716,10 @@ function renderTable(){
 }
 function sortBy(col){
   if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}
-  document.getElementById('sort-col').value=col;
-  renderTable();
+  document.getElementById('sort-col').value=col;renderTable();
 }
-window.sortBy=sortBy;
-window.renderTable=renderTable;
+window.sortBy=sortBy;window.renderTable=renderTable;
 
-// ── delete mode ──
 let deleteMode=false;
 function toggleDeleteMode(){
   deleteMode=true;
@@ -690,26 +752,17 @@ async function deleteSelected(){
   if(!window._firebaseReady){alert('Firebase не підключено');return;}
   const{deleteDoc,doc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   let done=0;
-  for(const id of selected){
-    try{await deleteDoc(doc(window._db,window._col,id));done++;}catch(e){console.error(e);}
-  }
+  for(const id of selected){try{await deleteDoc(doc(window._db,window._col,id));done++;}catch(e){console.error(e);}}
   alert(`✓ Видалено ${done} з ${selected.length} записів`);
   allStats=allStats.filter(r=>!selected.includes(r.id));
-  cancelDeleteMode();
-  renderTable();renderCharts();
+  cancelDeleteMode();renderTable();renderCharts();
 }
-window.toggleDeleteMode=toggleDeleteMode;
-window.cancelDeleteMode=cancelDeleteMode;
-window.toggleSelectAll=toggleSelectAll;
-window.toggleRow=toggleRow;
-window.deleteSelected=deleteSelected;
+window.toggleDeleteMode=toggleDeleteMode;window.cancelDeleteMode=cancelDeleteMode;
+window.toggleSelectAll=toggleSelectAll;window.toggleRow=toggleRow;window.deleteSelected=deleteSelected;
 
 function renderCharts(){
   const bestByName={};
-  allStats.forEach(r=>{
-    if(!r.name)return;
-    if(!bestByName[r.name]||r.score>(bestByName[r.name].score||0))bestByName[r.name]=r;
-  });
+  allStats.forEach(r=>{if(!r.name)return;if(!bestByName[r.name]||r.score>(bestByName[r.name].score||0))bestByName[r.name]=r;});
   const top=Object.values(bestByName).sort((a,b)=>b.score-a.score).slice(0,6);
   const maxS=Math.max(...top.map(r=>r.score||0),1);
   const medals=['🥇','🥈','🥉'];
@@ -728,34 +781,28 @@ function renderCharts(){
     </div>`).join('')||'<div class="no-data">Немає даних</div>';
 }
 
-// ── Excel export ──
 function exportExcel(){
   if(!allStats.length){alert('Немає даних для експорту');return;}
-  const rows=[['Ім\'я','Дата','Рахунок','Правильно','Помилки','Точність %','Серія','Час (сек)','Час (хв:сс)','Режим','Нотація','Колір']];
-  allStats.forEach(r=>rows.push([r.name||'',r.dateStr||'',r.score||0,r.correct||0,r.errors||0,r.accuracy||0,r.bestStreak||0,r.elapsed||0,fmtTime(r.elapsed||0),r.mode||'',r.coords||'',r.color||'']));
+  const rows=[["Ім'я",'Дата','Рахунок','Правильно','Помилки','Точність %','Серія','Час (сек)','Час','Режим','Нотація','Колір','Telegram']];
+  allStats.forEach(r=>rows.push([r.name||'',r.dateStr||'',r.score||0,r.correct||0,r.errors||0,r.accuracy||0,r.bestStreak||0,r.elapsed||0,fmtTime(r.elapsed||0),r.mode||'',r.coords||'',r.color||'',r.tgUsername||'']));
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:18},{wch:12},{wch:10},{wch:12},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:10},{wch:8}];
+  ws['!cols']=[{wch:18},{wch:12},{wch:10},{wch:12},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:10},{wch:8},{wch:14}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Результати');
-  const date=new Date().toLocaleDateString('uk-UA').replace(/\./g,'-');
-  XLSX.writeFile(wb,`chess_notation_${date}.xlsx`);
+  XLSX.writeFile(wb,`chess_notation_${new Date().toLocaleDateString('uk-UA').replace(/\./g,'-')}.xlsx`);
 }
-
-// ── CSV export ──
 function exportCSV(){
   if(!allStats.length){alert('Немає даних для експорту');return;}
-  const rows=[['Ім\'я','Дата','Рахунок','Правильно','Помилки','Точність %','Серія','Час (сек)','Режим','Нотація','Колір']];
-  allStats.forEach(r=>rows.push([r.name,r.dateStr,r.score,r.correct,r.errors,r.accuracy,r.bestStreak,r.elapsed,r.mode,r.coords?'так':'ні',r.color||'']));
+  const rows=[["Ім'я",'Дата','Рахунок','Правильно','Помилки','Точність %','Серія','Час (сек)','Режим','Нотація','Колір','Telegram']];
+  allStats.forEach(r=>rows.push([r.name,r.dateStr,r.score,r.correct,r.errors,r.accuracy,r.bestStreak,r.elapsed,r.mode,r.coords?'так':'ні',r.color||'',r.tgUsername||'']));
   const csv=rows.map(r=>r.map(v=>`"${v??''}"`).join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download=`chess_notation_${new Date().toLocaleDateString('uk-UA').replace(/\./g,'-')}.csv`;
   a.click();
 }
-window.exportExcel=exportExcel;
-window.exportCSV=exportCSV;
+window.exportExcel=exportExcel;window.exportCSV=exportCSV;
 
-// ── settings ──
 function setColor(c){color=c;document.getElementById('btn-white').classList.toggle('active',c==='white');document.getElementById('btn-black').classList.toggle('active',c==='black');buildBoard();}
 function setCoords(v){
   showCoords=v;
