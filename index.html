@@ -11,6 +11,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .screen{display:none;width:100%;max-width:520px;flex-direction:column;align-items:center}
 .screen.active{display:flex}
 #trainer-screen{max-width:940px}
+#game-screen{max-width:980px}
 
 /* login */
 #login-box{background:var(--panel);border-radius:16px;padding:28px 28px 24px;width:100%;max-width:360px;text-align:center;border:1.5px solid #2a3a5a}
@@ -22,6 +23,34 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .btn-big.secondary{background:var(--panel);border:1.5px solid #2a3a5a;color:var(--sub);margin-top:6px}
 .btn-big.secondary:hover{border-color:var(--accent);color:var(--accent)}
 #login-error{color:var(--error);font-size:12px;min-height:18px;margin-top:4px}
+
+/* game layout — board + leaderboard side by side on wide screens */
+#game-inner{display:flex;gap:16px;width:100%;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+#game-left{display:flex;flex-direction:column;align-items:center;flex:1 1 300px;min-width:0}
+
+/* leaderboard panel */
+#leaderboard-panel{background:var(--panel);border-radius:14px;border:1.5px solid #2a3a5a;padding:14px 16px;min-width:200px;max-width:260px;flex:0 0 220px}
+#leaderboard-panel h3{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.lb-row{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;margin-bottom:4px;transition:background .2s}
+.lb-row:hover{background:rgba(74,144,217,.08)}
+.lb-row.me{background:rgba(74,144,217,.15);border:1px solid rgba(74,144,217,.3)}
+.lb-rank{font-size:16px;width:24px;text-align:center;flex-shrink:0}
+.lb-info{flex:1;min-width:0}
+.lb-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-score{font-size:11px;color:#f0c040;font-weight:700}
+.lb-meta{font-size:10px;color:var(--sub)}
+.lb-empty{font-size:12px;color:var(--sub);text-align:center;padding:16px 0}
+#lb-refresh{background:none;border:none;color:var(--sub);cursor:pointer;font-size:13px;margin-left:auto;padding:2px 6px;border-radius:4px;transition:color .2s}
+#lb-refresh:hover{color:var(--accent)}
+.lb-spin{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* board size slider */
+.size-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin-bottom:4px}
+#board-size-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#2a3a5a;outline:none;cursor:pointer}
+#board-size-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;transition:transform .15s}
+#board-size-slider::-webkit-slider-thumb:hover{transform:scale(1.2)}
+#board-size-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:none}
+#board-size-val{min-width:32px;text-align:right;font-weight:700;color:var(--accent)}
 
 /* game */
 #player-badge{background:var(--panel);border-radius:8px;padding:4px 14px;font-size:13px;margin-bottom:8px;color:var(--sub)}
@@ -38,7 +67,7 @@ h1{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:8px;letter-s
 #target.correct{color:var(--success)}
 #target.wrong{color:var(--error);animation:shake .3s}
 @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}100%{transform:translateX(0)}}
-#board-wrap{position:relative;width:min(440px,94vw);margin-bottom:10px}
+#board-wrap{position:relative;width:min(440px,94vw);margin-bottom:10px;transition:width .2s}
 #board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;border-radius:4px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .sq{display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:filter .12s}
 .sq:hover{filter:brightness(1.18)}
@@ -98,6 +127,12 @@ tr:hover td{background:rgba(74,144,217,.07)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid #444;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
 #footer{margin-top:16px;font-size:11px;color:#444;text-align:center}
+
+/* delete mode */
+.row-select{display:none;cursor:pointer;accent-color:var(--error)}
+.delete-mode .row-select{display:inline-block}
+.delete-mode tr.selected td{background:rgba(229,57,53,.12)!important}
+tr.selected .row-select{accent-color:var(--error)}
 </style>
 </head>
 <body>
@@ -130,33 +165,57 @@ tr:hover td{background:rgba(74,144,217,.07)}
     <div class="tb-card"><div class="tb-label">Час</div><div class="tb-val" id="timer-val">—</div></div>
     <div class="tb-card"><div class="tb-label">Помилки</div><div class="tb-val" id="errors-val" style="color:var(--error)">0</div></div>
   </div>
-  <div id="target-box">
-    <div id="target-label">Знайди клітинку</div>
-    <div id="target">—</div>
-  </div>
-  <div id="motivation" class="hidden"></div>
-  <div id="board-wrap"><div id="board"></div></div>
-  <div id="settings">
-    <button class="btn active" id="btn-white" onclick="setColor('white')">♙ Білими</button>
-    <button class="btn" id="btn-black" onclick="setColor('black')">♟ Чорними</button>
-    <span style="width:1px;background:#333"></span>
-    <button class="btn" id="btn-coord-on" onclick="setCoords(true)">Нотація ✓</button>
-    <button class="btn" id="btn-coord-off" onclick="setCoords(false)">Без нотації</button>
-    <button class="btn" id="btn-coord-all" onclick="setCoords('all')">Всі клітинки</button>
-    <span style="width:1px;background:#333"></span>
-    <button class="btn" id="btn-timer-off" onclick="setTimerMode(0)">∞ Без</button>
-    <button class="btn active" id="btn-timer-on" onclick="setTimerMode(1)">⏱ Таймер</button>
-    <input class="timer-inp" type="number" id="timer-input" min="5" max="3600" value="60" oninput="onTimerInput()" onclick="setTimerMode(1)">
-    <span style="font-size:11px;color:var(--sub)">сек</span>
-    <span style="width:1px;background:#333"></span>
-    <button class="btn" id="btn-board-0" onclick="setBoard(0)">🟫 Класика</button>
-    <button class="btn active" id="btn-board-1" onclick="setBoard(1)">🟨 Горіх</button>
-    <button class="btn" id="btn-board-2" onclick="setBoard(2)">🟩 Зелений</button>
-    <button class="btn" id="btn-board-3" onclick="setBoard(3)">🟦 Синій</button>
-    <div style="width:100%;display:flex;gap:10px;justify-content:center;margin-top:6px">
-      <button onclick="startGame()" style="background:#4caf50;border:none;color:#fff;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">▶ Старт</button>
-      <button onclick="stopGame()" style="background:#e53935;border:none;color:#fff;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">■ Стоп</button>
-      <button onclick="goLogin()" style="background:#16213e;border:1.5px solid #4a90d9;color:#4a90d9;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.2)'" onmouseout="this.style.filter=''">← Меню</button>
+
+  <!-- board + leaderboard side by side -->
+  <div id="game-inner">
+    <div id="game-left">
+      <div id="target-box">
+        <div id="target-label">Знайди клітинку</div>
+        <div id="target">—</div>
+      </div>
+      <div id="motivation" class="hidden"></div>
+
+      <!-- Board size slider -->
+      <div class="size-row" style="width:min(440px,94vw);margin-bottom:6px">
+        <span>🔲</span>
+        <input type="range" id="board-size-slider" min="240" max="640" value="440" oninput="onBoardSize(this.value)">
+        <span id="board-size-val">440</span><span style="font-size:10px">px</span>
+      </div>
+
+      <div id="board-wrap"><div id="board"></div></div>
+
+      <div id="settings">
+        <button class="btn active" id="btn-white" onclick="setColor('white')">♙ Білими</button>
+        <button class="btn" id="btn-black" onclick="setColor('black')">♟ Чорними</button>
+        <span style="width:1px;background:#333"></span>
+        <button class="btn active" id="btn-coord-on" onclick="setCoords(true)">Нотація ✓</button>
+        <button class="btn" id="btn-coord-off" onclick="setCoords(false)">Без нотації</button>
+        <button class="btn" id="btn-coord-all" onclick="setCoords('all')">Всі клітинки</button>
+        <span style="width:1px;background:#333"></span>
+        <button class="btn" id="btn-timer-off" onclick="setTimerMode(0)">∞ Без</button>
+        <button class="btn active" id="btn-timer-on" onclick="setTimerMode(1)">⏱ Таймер</button>
+        <input class="timer-inp" type="number" id="timer-input" min="5" max="3600" value="60" oninput="onTimerInput()" onclick="setTimerMode(1)">
+        <span style="font-size:11px;color:var(--sub)">сек</span>
+        <span style="width:1px;background:#333"></span>
+        <button class="btn" id="btn-board-0" onclick="setBoard(0)">🟫 Класика</button>
+        <button class="btn active" id="btn-board-1" onclick="setBoard(1)">🟨 Горіх</button>
+        <button class="btn" id="btn-board-2" onclick="setBoard(2)">🟩 Зелений</button>
+        <button class="btn" id="btn-board-3" onclick="setBoard(3)">🟦 Синій</button>
+        <div style="width:100%;display:flex;gap:10px;justify-content:center;margin-top:6px">
+          <button onclick="startGame()" style="background:#4caf50;border:none;color:#fff;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">▶ Старт</button>
+          <button onclick="stopGame()" style="background:#e53935;border:none;color:#fff;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">■ Стоп</button>
+          <button onclick="goLogin()" style="background:#16213e;border:1.5px solid #4a90d9;color:#4a90d9;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;flex:1;max-width:140px;transition:filter .2s" onmouseover="this.style.filter='brightness(1.2)'" onmouseout="this.style.filter=''">← Меню</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TOP-5 LEADERBOARD ── -->
+    <div id="leaderboard-panel">
+      <h3>
+        🏆 Топ-5 гравців
+        <button id="lb-refresh" onclick="loadLeaderboard()" title="Оновити">↻</button>
+      </h3>
+      <div id="lb-list"><div class="lb-empty"><span class="lb-spin"></span></div></div>
     </div>
   </div>
 </div>
@@ -199,7 +258,7 @@ tr:hover td{background:rgba(74,144,217,.07)}
     <table>
       <thead><tr>
         <th id="th-check" style="display:none"><input type="checkbox" id="check-all" onclick="toggleSelectAll(this)" style="accent-color:var(--error)"></th>
-      <th>#</th>
+        <th>#</th>
         <th onclick="sortBy('name')">Учень</th>
         <th onclick="sortBy('date')">Дата</th>
         <th onclick="sortBy('score')">⭐ Рахунок</th>
@@ -231,12 +290,6 @@ tr:hover td{background:rgba(74,144,217,.07)}
 
 <div id="footer">♟ Знавець шахової нотації &nbsp;·&nbsp; Автор: тренер Ромашов Антон &nbsp;·&nbsp; ДЮСШ «Дебют», Львів</div>
 
-<style>
-.row-select{display:none;cursor:pointer;accent-color:var(--error)}
-.delete-mode .row-select{display:inline-block}
-.delete-mode tr.selected td{background:rgba(229,57,53,.12)!important}
-tr.selected .row-select{accent-color:var(--error)}
-</style>
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -285,10 +338,11 @@ const MOTIVATIONS=[
   [30,'30 підряд! Легендарна точність! 👑'],
 ];
 const FILES='abcdefgh';
-const MEDALS=['🥇','🥈','🥉'];
+const MEDALS=['🥇','🥈','🥉','4️⃣','5️⃣'];
 
 let playerName='';
-let color='white',showCoords=true,timerMode=1,boardTheme=1;let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
+let color='white',showCoords=true,timerMode=1,boardTheme=1;
+let score=0,streak=0,errors=0,bestStreak=0,totalAnswered=0;
 let target=null,running=false,timerSecs=0,timerInterval=null,startTime=null;
 let allStats=[],sortCol='score',sortDir=-1;
 
@@ -313,6 +367,7 @@ function loginStudent(){
   buildBoard();
   const s=parseInt(document.getElementById('timer-input').value)||60;
   document.getElementById('timer-val').textContent=timerMode?fmtTime(s):'∞';
+  loadLeaderboard();
 }
 function loginTrainer(){
   const p=document.getElementById('trainer-pass').value;
@@ -326,6 +381,16 @@ document.getElementById('login-name').addEventListener('keydown',e=>{if(e.key===
 document.getElementById('trainer-pass').addEventListener('keydown',e=>{if(e.key==='Enter')loginTrainer();});
 window.loginStudent=loginStudent;
 window.loginTrainer=loginTrainer;
+
+// ── board size slider ──
+function onBoardSize(val){
+  val=parseInt(val);
+  const vw=Math.floor(window.innerWidth*0.94);
+  const actual=Math.min(val,vw);
+  document.getElementById('board-wrap').style.width=actual+'px';
+  document.getElementById('board-size-val').textContent=actual;
+}
+window.onBoardSize=onBoardSize;
 
 // ── board ──
 function buildBoard(){
@@ -347,13 +412,11 @@ function buildBoard(){
       sq.style.color=isLight?t.dark:t.light;
 
       if(showCoords===true){
-        // класичний режим: літера внизу крайнього стовпця, цифра зліва крайнього рядка
         const df=color==='white'?f:7-f;
         const dr=color==='white'?r:7-r;
         if(df===0){const rl=document.createElement('span');rl.className='coord-label coord-rank';rl.textContent=ar+1;sq.appendChild(rl);}
         if(dr===0){const fl=document.createElement('span');fl.className='coord-label coord-file';fl.textContent=FILES[af];sq.appendChild(fl);}
       } else if(showCoords==='all'){
-        // режим початківця: координата по центру кожної клітинки
         const lbl=document.createElement('span');
         lbl.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,1.8vw,13px);font-weight:800;opacity:0.55;pointer-events:none;letter-spacing:0';
         lbl.textContent=name;
@@ -433,13 +496,11 @@ function startGame(){
   nextTarget();
 }
 
-// кнопка Стоп — зупиняє і показує результат
 function stopGame(){
   if(!running)return;
   finishGame();
 }
 
-// внутрішнє завершення (таймер або стоп)
 function finishGame(){
   if(!running)return;
   running=false;
@@ -452,17 +513,9 @@ function finishGame(){
   saveResult(elapsed);
 }
 
-// ── кнопка Меню з overlay ──
-function endGameToMenu(){
-  running=false;
-  clearInterval(timerInterval);
-  hideOverlay();
-  goLogin();
-}
-
 window.startGame=startGame;
 window.stopGame=stopGame;
-window.endGame=stopGame; // сумісність
+window.endGame=stopGame;
 
 // ── overlay ──
 function showOverlay(elapsed){
@@ -478,7 +531,6 @@ function showOverlay(elapsed){
 }
 function hideOverlay(){document.getElementById('overlay').classList.remove('show');}
 
-// ── overlay кнопки ──
 document.getElementById('overlay-again').onclick=()=>startGame();
 document.getElementById('overlay-logout').onclick=()=>{hideOverlay();goLogin();};
 
@@ -499,8 +551,48 @@ async function saveResult(elapsed){
       dateStr:new Date().toLocaleDateString('uk-UA'),
     });
     sv.textContent='✓ Збережено!';
+    // Оновити лідерборд після збереження
+    setTimeout(loadLeaderboard, 800);
   }catch(e){sv.innerHTML=`⚠ Помилка: ${e.message}`;}
 }
+
+// ── LEADERBOARD (top-5 on game screen) ──
+async function loadLeaderboard(){
+  const list=document.getElementById('lb-list');
+  list.innerHTML='<div class="lb-empty"><span class="lb-spin"></span></div>';
+  if(!window._firebaseReady){
+    list.innerHTML='<div class="lb-empty">⚠ Немає з\'єднання</div>';
+    return;
+  }
+  try{
+    const snap=await window._getDocs(
+      window._query(window._collection(window._db,window._col),window._orderBy('score','desc'))
+    );
+    const docs=snap.docs.map(d=>d.data());
+    // знаходимо найкращий результат кожного учня
+    const best={};
+    docs.forEach(r=>{
+      if(!r.name)return;
+      if(!best[r.name]||r.score>(best[r.name].score||0))best[r.name]=r;
+    });
+    const top=Object.values(best).sort((a,b)=>b.score-a.score).slice(0,5);
+    if(!top.length){list.innerHTML='<div class="lb-empty">Ще немає результатів</div>';return;}
+    list.innerHTML=top.map((r,i)=>{
+      const isMe=r.name===playerName;
+      return `<div class="lb-row${isMe?' me':''}">
+        <div class="lb-rank">${MEDALS[i]||i+1}</div>
+        <div class="lb-info">
+          <div class="lb-name">${r.name}</div>
+          <div class="lb-score">⭐ ${r.score} балів</div>
+          <div class="lb-meta">✓${r.correct||0} &nbsp;✗${r.errors||0} &nbsp;${r.accuracy||0}%</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    list.innerHTML=`<div class="lb-empty">⚠ ${e.message}</div>`;
+  }
+}
+window.loadLeaderboard=loadLeaderboard;
 
 // ── trainer ──
 async function loadStats(){
@@ -541,7 +633,7 @@ function renderTable(){
   tbody.innerHTML=data.map((r,i)=>{
     const acc=r.accuracy??0;
     const medal=i<3?`<span class="badge ${i===0?'badge-gold':i===1?'badge-silver':'badge-bronze'}">${MEDALS[i]}</span>`:'';
-    return     `<tr class="${deleteMode?'':''}">
+    return `<tr>
       <td style="display:${deleteMode?'':'none'}"><input type="checkbox" class="row-select" data-id="${r.id||''}" onclick="toggleRow(this,this.closest('tr'))"></td>
       <td style="color:var(--sub)">${i+1}</td>
       <td><b>${r.name||'—'}</b> ${medal}</td>
@@ -567,7 +659,6 @@ window.renderTable=renderTable;
 
 // ── delete mode ──
 let deleteMode=false;
-
 function toggleDeleteMode(){
   deleteMode=true;
   document.getElementById('btn-delete-mode').style.display='none';
@@ -592,13 +683,11 @@ function toggleSelectAll(cb){
   document.querySelectorAll('#stats-tbody tr').forEach(tr=>tr.classList.toggle('selected',cb.checked));
 }
 function toggleRow(cb,tr){tr.classList.toggle('selected',cb.checked);}
-
 async function deleteSelected(){
   const selected=[...document.querySelectorAll('.row-select:checked')].map(c=>c.dataset.id);
   if(!selected.length){alert('Не вибрано жодного запису!');return;}
   if(!confirm(`Видалити ${selected.length} запис(ів)? Це незворотно!`))return;
   if(!window._firebaseReady){alert('Firebase не підключено');return;}
-
   const{deleteDoc,doc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   let done=0;
   for(const id of selected){
@@ -616,14 +705,11 @@ window.toggleRow=toggleRow;
 window.deleteSelected=deleteSelected;
 
 function renderCharts(){
-  // Найкращий результат кожного учня
   const bestByName={};
   allStats.forEach(r=>{
     if(!r.name)return;
     if(!bestByName[r.name]||r.score>(bestByName[r.name].score||0))bestByName[r.name]=r;
   });
-
-  // Топ рахунок — сортуємо від більшого до меншого, топ-6
   const top=Object.values(bestByName).sort((a,b)=>b.score-a.score).slice(0,6);
   const maxS=Math.max(...top.map(r=>r.score||0),1);
   const medals=['🥇','🥈','🥉'];
@@ -633,8 +719,6 @@ function renderCharts(){
       <div class="bar-bg"><div class="bar-fill" style="width:${Math.round((r.score||0)/maxS*100)}%"></div></div>
       <div class="bar-val">${r.score||0}</div>
     </div>`).join('')||'<div class="no-data">Немає даних</div>';
-
-  // Топ точності — точність найкращої спроби, сортуємо від більшої до меншої
   const topAcc=Object.values(bestByName).sort((a,b)=>b.accuracy-a.accuracy).slice(0,6);
   document.getElementById('chart-acc').innerHTML=topAcc.map((r,i)=>`
     <div class="bar-row">
@@ -644,19 +728,13 @@ function renderCharts(){
     </div>`).join('')||'<div class="no-data">Немає даних</div>';
 }
 
-// ── Excel export (SheetJS) ──
+// ── Excel export ──
 function exportExcel(){
   if(!allStats.length){alert('Немає даних для експорту');return;}
   const rows=[['Ім\'я','Дата','Рахунок','Правильно','Помилки','Точність %','Серія','Час (сек)','Час (хв:сс)','Режим','Нотація','Колір']];
-  allStats.forEach(r=>rows.push([
-    r.name||'',r.dateStr||'',r.score||0,r.correct||0,r.errors||0,
-    r.accuracy||0,r.bestStreak||0,r.elapsed||0,fmtTime(r.elapsed||0),
-    r.mode||'',r.coords||'',r.color||''
-  ]));
+  allStats.forEach(r=>rows.push([r.name||'',r.dateStr||'',r.score||0,r.correct||0,r.errors||0,r.accuracy||0,r.bestStreak||0,r.elapsed||0,fmtTime(r.elapsed||0),r.mode||'',r.coords||'',r.color||'']));
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  // ширина колонок
   ws['!cols']=[{wch:18},{wch:12},{wch:10},{wch:12},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:10},{wch:8}];
-  // стиль заголовку (жирний)
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Результати');
   const date=new Date().toLocaleDateString('uk-UA').replace(/\./g,'-');
